@@ -1,2387 +1,640 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Temperatura GR Engenharia Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <style>
-    :root {
-      --primary-color: #3f51b5;
-      --secondary-color: #f50057;
-      --success-color: #4caf50;
-      --warning-color: #ff9800;
-      --error-color: #f44336;
-      --dark-color: #263238;
-      --light-color: #f5f5f5;
-      --grey-color: #607d8b;
-      --shadow: 0 4px 10px rgba(0,0,0,0.1);
-      --radius: 12px;
-      --transition: all 0.3s ease;
-    }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: var(--light-color);
-      color: var(--dark-color);
-      line-height: 1.6;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard ESP32 - GR Componentes</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --cold-color: #3498db;
+            --normal-color: #2ecc71;
+            --warm-color: #f39c12;
+            --hot-color: #e74c3c;
+        }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      transition: var(--transition);
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-    .card {
-      background: white;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      margin: 20px 0;
-      padding: 30px;
-      transition: var(--transition);
-    }
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
 
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 10px rgba(0,0,0,0.1);
-    }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    .login-container {
-      max-width: 400px;
-      margin: 100px auto;
-    }
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
 
-    .dashboard-container {
-      margin: 20px auto;
-    }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-    h1, h2 {
-      color: var(--primary-color);
-      margin-bottom: 20px;
-      font-weight: 600;
-    }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #e74c3c;
+            transition: background-color 0.3s ease;
+        }
 
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
+        .status-indicator.connected {
+            background-color: #2ecc71;
+        }
 
-    .header h1 {
-      margin: 0;
-      font-size: 1.8rem;
-    }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
 
-    input, select {
-      width: 100%;
-      padding: 12px 15px;
-      margin: 8px 0;
-      border: 1px solid #ddd;
-      border-radius: var(--radius);
-      font-size: 16px;
-      background: #f9f9f9;
-      transition: var(--transition);
-    }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
 
-    input:focus, select:focus {
-      border-color: var(--primary-color);
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2);
-    }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        }
 
-    .btn {
-      padding: 12px 25px;
-      border: none;
-      border-radius: var(--radius);
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: var(--transition);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
 
-    .btn-primary {
-      background: var(--primary-color);
-      color: white;
-    }
+        .card-title {
+            font-size: 1.2rem;
+            color: var(--dark-color);
+            font-weight: 600;
+        }
 
-    .btn-primary:hover {
-      background: #303f9f;
-      transform: translateY(-2px);
-    }
+        .card-icon {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+        }
 
-    .btn-danger {
-      background: var(--error-color);
-      color: white;
-    }
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }        .data-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 5px 0;
+        }
 
-    .btn-danger:hover {
-      background: #d32f2f;
-      transform: translateY(-2px);
-    }
+        .data-unit {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .temp-bar {
+            height: 10px;
+            width: 100%;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .temp-indicator {
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            min-width: 10px;
+            border-radius: 5px;
+            transition: width 0.5s ease, background-color 0.5s ease;
+        }
+        
+        .temp-indicator.cold {
+            background-color: var(--cold-color);
+        }
+        
+        .temp-indicator.normal {
+            background-color: var(--normal-color);
+        }
+        
+        .temp-indicator.warm {
+            background-color: var(--warm-color);
+        }
+        
+        .temp-indicator.hot {
+            background-color: var(--hot-color);
+        }
+        
+        .packet-details {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #eee;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
 
-    .btn-success {
-      background: var(--success-color);
-      color: white;
-    }
+        .data-timestamp {
+            color: #95a5a6;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            text-align: right;
+        }        .last-update {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-align: right;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .refresh-btn {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        #log-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
 
-    .btn-success:hover {
-      background: #388e3c;
-      transform: translateY(-2px);
-    }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f1f1f1;
+        }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
+        .no-data {
+            color: #7f8c8d;
+            text-align: center;
+            padding: 20px 0;
+        }
 
-    .stat-card {
-      padding: 20px;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      transition: var(--transition);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    }
-
-    /* Modificar o cartão de temperatura para ser clicável */
-    .stat-card.temperature-display {
-      background: linear-gradient(135deg, #FE6B8B, #FF8E53, #fd7267, #FC354C);
-      background-size: 300% 300%;
-      color: white;
-      position: relative;
-      cursor: pointer;
-      overflow: hidden;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      animation: gradientAnimation 8s ease infinite;
-    }
-    
-    .stat-card.temperature-display::after {
-      content: "\f077";
-      font-family: "Font Awesome 6 Free";
-      font-weight: 900;
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      font-size: 0.8rem;
-      opacity: 0.7;
-      transition: transform 0.3s ease;
-    }
-    
-    .stat-card.temperature-display.active::after {
-      transform: rotate(180deg);
-    }
-    
-    .stat-card.temperature-display:hover::after {
-      opacity: 1;
-    }
-
-    .stat-label {
-      font-size: 1rem;
-      font-weight: 500;
-      margin-bottom: 5px;
-      opacity: 0.9;
-    }
-
-    .stat-value {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-
-    .stat-icon {
-      position: absolute;
-      bottom: -15px;
-      right: 10px;
-      font-size: 4rem;
-      opacity: 0.3;
-    }
-
-    .chart-container {
-      position: relative;
-      height: 350px;
-      margin-top: 20px;
-    }
-
-    .action-bar {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin: 20px 0;
-      flex-wrap: wrap;
-    }
-
-    /* Popup */
-    .popup {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 999;
-      backdrop-filter: blur(3px);
-    }
-
-    .popup-content {
-      background-color: white;
-      padding: 30px;
-      border-radius: var(--radius);
-      width: 90%;
-      max-width: 500px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-      animation: popIn 0.3s ease forwards;
-    }
-
-    @keyframes popIn {
-      from {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .popup-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 1px solid #eee;
-    }
-
-    .popup-header h2 {
-      margin: 0;
-      font-size: 1.5rem;
-    }
-
-    .close-btn {
-      background: none;
-      border: none;
-      color: var(--dark-color);
-      font-size: 24px;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .close-btn:hover {
-      color: var(--error-color);
-      transform: scale(1.2);
-    }
-
-    /* Notifications */
-    .notification {
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: var(--radius);
-      text-align: center;
-      display: none;
-      animation: fadeIn 0.5s ease;
-      position: relative;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    .success {
-      background-color: #d4edda;
-      color: #155724;
-      border-left: 4px solid var(--success-color);
-    }
-    
-    .error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border-left: 4px solid var(--error-color);
-    }
-    
-    .info-notification {
-      background-color: #d1ecf1;
-      color: #0c5460;
-      border-left: 4px solid #17a2b8;
-    }
-
-    /* Responsiveness */
-    @media (max-width: 768px) {
-      .container {
-        padding: 15px;
-      }
-      
-      .header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      
-      .stats-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .stat-card {
-        padding: 15px;
-      }
-      
-      .popup-content {
-        width: 95%;
-        padding: 20px;
-      }
-    }
-
-    /* Adicionando estilos para o histórico oculto/visível */
-    .chart-card {
-      display: none;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.5s ease, transform 0.5s ease;
-    }
-    
-    .chart-card.visible {
-      display: block;
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    /* Estilo para o botão de fechar o gráfico */
-    .close-chart {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      background: none;
-      border: none;
-      color: var(--primary-color);
-      font-size: 20px;
-      cursor: pointer;
-      z-index: 5;
-      opacity: 0.7;
-      transition: all 0.3s ease;
-    }
-    
-    .close-chart:hover {
-      opacity: 1;
-      transform: scale(1.1);
-    }
-    
-    .stat-card.temperature:hover::after {
-      opacity: 1;
-    }
-
-    /* Animação de gradiente para todos os cartões */
-    @keyframes gradientAnimation {
-      0% {
-        background-position: 0% 50%;
-      }
-      50% {
-        background-position: 100% 50%;
-      }
-      100% {
-        background-position: 0% 50%;
-      }
-    }
-    
-    /* Animação para o cartão WiFi */
-    .stat-card.wifi {
-      background: linear-gradient(135deg, #1488cc, #2b32b2, #4675d9, #0f52ba);
-      background-size: 300% 300%;
-      color: white;
-      cursor: pointer;
-      animation: gradientAnimation 10s ease infinite;
-    }
-    
-    /* Animação para o cartão MQTT */
-    .stat-card.mqtt {
-      background: linear-gradient(135deg, #06beb6, #48b1bf, #0acffe, #3bb2b8);
-      background-size: 300% 300%;
-      color: white;
-      cursor: pointer;
-      animation: gradientAnimation 12s ease infinite;
-    }
-    
-    /* Adicionar efeito de onda ao cartão WiFi */
-    .stat-card.wifi .stat-icon {
-      animation: waveAnimation 3s ease-in-out infinite;
-    }
-    
-    @keyframes waveAnimation {
-      0% { 
-        opacity: 0.2;
-        transform: translateY(0);
-      }
-      50% { 
-        opacity: 0.5;
-        transform: translateY(-5px);
-      }
-      100% { 
-        opacity: 0.2;
-        transform: translateY(0);
-      }
-    }
-    
-    /* Adicionar efeito de pulso ao ícone MQTT */
-    .stat-card.mqtt .stat-icon {
-      animation: pulseAnimation 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulseAnimation {
-      0% { 
-        opacity: 0.2;
-        transform: scale(0.95);
-      }
-      50% { 
-        opacity: 0.5;
-        transform: scale(1.05);
-      }
-      100% { 
-        opacity: 0.2;
-        transform: scale(0.95);
-      }
-    }
-    
-    /* Estilizar os valores dos status */
-    .stat-card.mqtt .stat-value.connected,
-    .stat-card.wifi .stat-value.connected {
-      position: relative;
-    }
-    
-    .stat-card.mqtt .stat-value.connected::after,
-    .stat-card.wifi .stat-value.connected::after {
-      content: '';
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background-color: #4CAF50;
-      border-radius: 50%;
-      margin-left: 8px;
-      animation: blinkAnimation 2s infinite;
-    }
-    
-    @keyframes blinkAnimation {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    /* Estilos para o contador de segundos */
-    .timer-display {
-      display: flex;
-      align-items: center;
-      margin-top: 10px;
-      font-size: 0.9rem;
-    }
-
-    .timer-label {
-      margin-right: 5px;
-      opacity: 0.8;
-    }
-
-    .timer-value {
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-right: 10px;
-    }
-
-    .progress-ring {
-      position: relative;
-      width: 40px;
-      height: 40px;
-    }
-
-    .progress-ring-circle-bg {
-      fill: transparent;
-      stroke: rgba(255, 255, 255, 0.2);
-      stroke-width: 3;
-    }
-
-    .progress-ring-circle {
-      fill: transparent;
-      stroke: white;
-      stroke-width: 3;
-      stroke-dasharray: 113; /* 2πr (2 * 3.14 * 18) */
-      stroke-dashoffset:
-      transform: rotate(-90deg);
-      transform-origin: center;
-      transition: stroke-dashoffset 0.3s ease;
-    }
-
-    /* Adicionar estilos para os novos cards da prensa */
-    /* Estilo para o card de temperatura da prensa */
-    .stat-card.prensa-temp {
-      background: linear-gradient(135deg, #8e2de2, #4a00e0, #6a3093, #7b4397);
-      background-size: 300% 300%;
-      color: white;
-      cursor: pointer;
-      animation: gradientAnimation 10s ease infinite;
-    }
-    
-    .stat-card.prensa-tempo {
-      background: linear-gradient(135deg, #1e3c72, #2a5298, #2e3a6a, #4286f4);
-      background-size: 300% 300%;
-      color: white;
-      cursor: pointer;
-      animation: gradientAnimation 12s ease infinite;
-    }
-    
-    .target-info, .timer-config {
-      display: flex;
-      align-items: center;
-     
-      font-size: 0.9rem;
-    }
-    
-    .target-label, .timer-config-label {
-      margin-right: 5px;
-      opacity: 0.8;
-    }
-    
-    .target-value, .timer-config-value {
-      font-weight: 600;
-      font-size: 1.1rem;
-    }
-    
-    .temp-target {
-      margin-left: 8px;
-      font-size: 0.8rem;
-    }
-    
-    /* Animação específica para o ícone da temperatura da prensa */
-    .stat-card.prensa-temp .stat-icon {
-      animation: sliderAnimation 4s ease-in-out infinite;
-    }
-    
-    @keyframes sliderAnimation {
-      0% { transform: translateX(-3px) rotate(-5deg); opacity: 0.3; }
-      50% { transform: translateX(3px) rotate(5deg); opacity: 0.5; }
-      100% { transform: translateX(-3px) rotate(-5deg); opacity: 0.3; }
-    }
-    
-    /* Animação específica para o ícone do tempo */
-    .stat-card.prensa-tempo .stat-icon {
-      animation: clockAnimation 4s linear infinite;
-    }
-    
-    @keyframes clockAnimation {
-      0% { transform: rotate(0deg); opacity: 0.3; }
-      50% { transform: rotate(180deg); opacity: 0.5; }
-      100% { transform: rotate(360deg); opacity: 0.3; }
-    }
-
-    /* Estilo para o card de tensão AC */
-    .stat-card.tensao-ac {
-      background: linear-gradient(135deg, #FFCC33, #FF6666, #CC33FF, #FF9933);
-      background-size: 300% 300%;
-      color: white;
-      animation: gradientAnimation 10s ease infinite;
-      position: relative;
-    }
-    
-    .stat-card.tensao-ac .stat-icon {
-      animation: tensaoAnimation 1.5s ease-in-out infinite;
-      opacity: 0.3;
-      font-size: 3.5rem;
-    }
-    
-    @keyframes tensaoAnimation {
-      0%, 100% { 
-        transform: scale(1);
-        opacity: 0.2;
-      }
-      50% { 
-        transform: scale(1.1) rotate(10deg);
-        opacity: 0.5;
-      }
-    }
-    
-    .tensao-progress-container {
-      width: 100%;
-      height: 6px;
-      background-color: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
-      margin-top: 10px;
-      overflow: hidden;
-    }
-    
-    .tensao-progress {
-      height: 100%;
-      background-color: rgba(255, 255, 255, 0.7);
-      border-radius: 3px;
-      width: 0%;
-      transition: width 0.5s ease-in-out;
-    }
-    
-    .tensao-display {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 10px;
-    }
-    
-    .tensao-status {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-left: 8px;
-    }
-    
-    .tensao-status.normal {
-      background-color: #a3f7bf;
-      box-shadow: 0 0 5px #a3f7bf;
-    }
-    
-    .tensao-status.baixa {
-      background-color: #ffcc66;
-      box-shadow: 0 0 5px #ffcc66;
-    }
-    
-    .tensao-status.alta {
-      background-color: #ff6b6b;
-      box-shadow: 0 0 5px #ff6b6b;
-    }
-    
-    .tensao-tipo {
-      font-size: 0.8rem;
-      margin-left: auto;
-      background-color: rgba(255, 255, 255, 0.2);
-      padding: 3px 8px;
-      border-radius: 10px;
-    }
-  </style>
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
+    <header>
+        <h1>Dashboard</h1>
+        <div class="connection-status">
+            <div id="status-indicator" class="status-indicator"></div>
+            <span id="connection-text">Desconectado</span>        </div>
+    </header>
 
-<!-- TELA DE LOGIN -->
-<div class="container login-container" id="login-container">
-  <div class="card">
-    <h1><i class="fas fa-thermometer-half"></i> Temperatura GR Engenharia</h1>
-    <input type="text" id="usuario" placeholder="Usuário" />
-    <input type="password" id="senha" placeholder="Senha" />
-    <button class="btn btn-primary" onclick="verificaLogin()">
-      <i class="fas fa-sign-in-alt"></i> Entrar
-    </button>
-  </div>
-</div>
-
-<!-- DASHBOARD -->
-<div class="container dashboard-container" id="dashboard" style="display: none;">
-  <div class="header">
-    <h1><i class="fas fa-thermometer-half"></i> Temperatura GR Engenharia</h1>
-    <button class="btn btn-danger" onclick="logout()">
-      <i class="fas fa-sign-out-alt"></i> Sair
-    </button>
-  </div>
-
-  <!-- Modificação no cartão de temperatura para incluir os segundos -->
-  <!-- Reorganize a ordem dos cards na div stats-grid -->
-  <div class="stats-grid">
-    <!-- Card Temperatura LM35 -->
-    <div class="stat-card temperature-display" id="temperatura-display-card" onclick="abrirPopupTemperatura()">
-      <span class="stat-label">Temperatura LM35</span>
-      <div>
-        <span class="stat-value" id="temperatura">--</span>°C
-        <span class="temp-indicator" id="temp-indicator"></span>
-      </div>
-      <div class="timer-display">
-        <span class="timer-label">Segundos:</span>
-        <span class="timer-value" id="segundos-counter">--</span>
-        <div class="progress-ring">
-          <svg width="40" height="40" viewBox="0 0 40 40">
-            <circle class="progress-ring-circle-bg" cx="20" cy="20" r="18" />
-            <circle class="progress-ring-circle" id="segundos-ring" cx="20" cy="20" r="18" />
-          </svg>
+    <div id="dashboard-grid" class="dashboard-grid">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Aguardando dados...</span>
+                <span class="card-icon"><i class="fas fa-spinner fa-spin"></i></span>
+            </div>
+            <div class="card-content">
+                <span class="no-data">Aguardando recebimento de dados MQTT</span>
+            </div>
         </div>
-      </div>
-      <i class="fas fa-thermometer-half stat-icon"></i>
-    </div>
-    
-    <!-- Card Temperatura NTC -->
-    <div class="stat-card ntc" id="ntc-card">
-      <span class="stat-label">Temperatura NTC</span>
-      <div class="temp-display">
-        <span class="stat-value" id="ntc-value">--</span>°C
-        <span class="temp-trend" id="ntc-trend"></span>
-      </div>
-      <i class="fas fa-thermometer-half stat-icon"></i>
-    </div>
-    
-    <!-- Card Temperatura NTC Dissipador -->
-    <div class="stat-card ntc2" id="ntc2-card">
-      <span class="stat-label">Temperatura NTC Dissipador</span>
-      <div class="temp-display">
-        <span class="stat-value" id="ntc2-value">--</span>°C
-        <span class="temp-trend" id="ntc2-trend"></span>
-      </div>
-      <i class="fas fa-thermometer-three-quarters stat-icon"></i>
-    </div>
-    
-    <!-- Card WiFi -->
-    <div class="stat-card wifi" id="wifi-card" onclick="abrirPopupWifi()">
-      <span class="stat-label">Wi-Fi</span>
-      <span class="stat-value" id="ssid">--</span>
-      <i class="fas fa-wifi stat-icon"></i>
-    </div>
-    
-    <!-- Card Bluetooth - Movido para ficar após o WiFi -->
-    <div class="stat-card bluetooth" id="bluetooth-card" onclick="toggleBluetooth()">
-      <span class="stat-label">Bluetooth</span>
-      <span class="stat-value" id="bluetooth-status">Desconhecido</span>
-      <div class="toggle-switch" id="bluetooth-switch">
-        <div class="toggle-slider"></div>
-      </div>
-      <i class="fab fa-bluetooth-b stat-icon"></i>
-    </div>
-    
-    <!-- Card MQTT -->
-    <div class="stat-card mqtt" id="mqtt-card" onclick="abrirPopupMQTT()">
-      <span class="stat-label">MQTT Status</span>
-      <span class="stat-value" id="mqtt-status">Desconectado</span>
-      <i class="fas fa-server stat-icon"></i>
+    </div>    <div class="last-update" id="last-update">
+        Última atualização: --
+        <button id="refresh-button" class="refresh-btn">
+            <i class="fas fa-sync-alt"></i> Atualizar
+        </button>
     </div>
 
-    <!-- Card Temperatura da Prensa -->
-    <div class="stat-card prensa-temp" id="prensa-temp-card" onclick="abrirPopupPrensaTemp()">
-      <span class="stat-label">Temperatura da Prensa</span>
-      <div>
-        <span class="stat-value" id="prensa-temp-value">--</span>°C
-        <span class="temp-target" id="prensa-temp-target"></span>
-      </div>
-      <i class="fas fa-sliders-h stat-icon"></i>
+    <div id="log-container">
+        <div class="log-entry">Iniciando conexão com o broker MQTT...</div>
     </div>
 
-    <!-- Card Tempo da Prensa - Modificado para mostrar apenas o tempo configurado -->
-    <div class="stat-card prensa-tempo" id="prensa-tempo-card" onclick="abrirPopupPrensaTempo()">
-      <span class="stat-label">Tempo configurado</span>
-      <div>
-        <span class="stat-value" id="prensa-tempo-atual">--</span>s
-      </div>
-      <i class="fas fa-clock stat-icon"></i>
-    </div>
-
-    <!-- Novo Card de Tensão AC -->
-    <div class="stat-card tensao-ac" id="tensao-card" onclick="abrirPopupTensao()">
-      <span class="stat-label">Tensão da Rede</span>
-      <div class="tensao-display">
-        <span class="stat-value" id="tensao-value">--</span>V
-        <span class="tensao-status" id="tensao-status"></span>
-      </div>
-      <div class="tensao-progress-container">
-        <div class="tensao-progress" id="tensao-progress"></div>
-      </div>
-      <i class="fas fa-bolt stat-icon"></i>
-    </div>
-  </div>
-
-  <div class="action-bar">
-    <!-- Nenhum botão aqui após a remoção -->
-  </div>
-</div>
-
-<!-- POPUP DE CONFIGURAÇÃO DE WIFI -->
-<div class="popup" id="popup-wifi">
-  <div class="popup-content">
-    <div class="popup-header">
-      <h2><i class="fas fa-wifi"></i> Configuração Wi-Fi</h2>
-      <button class="close-btn" onclick="fecharPopupWifi()">×</button>
-    </div>
-    
-    <div id="wifi-notification" class="notification"></div>
-    
-    <div class="section-title">Configurar nova rede Wi-Fi</div>
-    <button class="btn btn-primary" onclick="buscarRedes()">
-      <i class="fas fa-sync-alt"></i> Buscar redes
-    </button>
-    <select id="lista-wifi">
-      <option>-- redes disponíveis --</option>
-    </select>
-    <input type="password" id="nova-senha" placeholder="Senha da rede" />
-    <button class="btn btn-success" onclick="enviarWifi()">
-      <i class="fas fa-plug"></i> Conectar
-    </button>
-  </div>
-</div>
-
-<!-- Adicionando o popup para informações MQTT -->
-<div class="popup" id="popup-mqtt">
-  <div class="popup-content">
-    <div class="popup-header">
-      <h2><i class="fas fa-server"></i> Detalhes da Conexão MQTT</h2>
-      <button class="close-btn" onclick="fecharPopupMQTT()">×</button>
-    </div>
-    
-    <div id="mqtt-notification" class="notification"></div>
-    
-    <div class="mqtt-details">
-      <div class="detail-row">
-        <div class="detail-label">Status:</div>
-        <div class="detail-value" id="mqtt-status-detail">Desconectado</div>
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Broker:</div>
-        <div class="detail-value">test.mosquitto.org:8081</div>
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Cliente ID:</div>
-        <div class="detail-value" id="mqtt-client-id">-</div>
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Tópicos inscritos:</div>
-        <ul class="topic-list">
-          <li>grcomponentes/sensortemperatura</li>
-          <li>esp32/wifi/lista</li>
-          <li>esp32/wifi/status</li>
-          <li>grcomponentes/prensa/status</li>
-        </ul>
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Última mensagem:</div>
-        <div class="detail-value" id="mqtt-last-message">-</div>
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Tempo online:</div>
-        <div class="detail-value" id="mqtt-uptime">-</div>
-      </div>
-    </div>
-    
-    <div class="mqtt-actions">
-      <button class="btn btn-primary" onclick="reconnectMQTT()" style="width: 100%;">
-        <i class="fas fa-sync-alt"></i> Reconectar
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Adicionando estilos para os detalhes MQTT -->
-<style>
-  .mqtt-details {
-    margin: 20px 0;
-  }
-  
-  .detail-row {
-    margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .detail-row:last-child {
-    border-bottom: none;
-  }
-  
-  .detail-label {
-    font-weight: 600;
-    color: var(--dark-color);
-    margin-bottom: 5px;
-  }
-  
-  .detail-value {
-    font-size: 16px;
-    color: var(--grey-color);
-  }
-  
-  .topic-list {
-    list-style-type: none;
-    padding-left: 5px;
-    margin-top: 5px;
-  }
-  
-  .topic-list li {
-    padding: 5px 10px;
-    background: #f5f5f5;
-    border-radius: 4px;
-    margin-bottom: 5px;
-    font-size: 14px;
-    font-family: monospace;
-  }
-</style>
-
-<script>
-  // Variáveis globais - mantenha apenas esta declaração
-  let client = null;
-  let grafico = null;
-  let dados = null;
-  let notificationTimeout = null;
-  let historicoDados = []; // Para armazenar histórico de temperaturas
-  let clientId = 'dashboard_' + Math.random().toString(16).substr(2, 8);
-  let connectionStartTime = null;
-  let lastMessageTime = null;
-  let lastMessageContent = null;
-  let lastTemperature = null;
-  let heartbeatInterval = null; // Para armazenar a referência ao intervalo de heartbeat
-
-  // Modifique a função de carregamento do documento para incluir o listener de tecla Enter
-  document.addEventListener("DOMContentLoaded", function() {
-    const loggedIn = localStorage.getItem("mqttDashboardLoggedIn");
-    if (loggedIn === "true") {
-      document.getElementById("login-container").style.display = "none";
-      document.getElementById("dashboard").style.display = "block";
-      iniciarDashboard();
-    }
-    
-    // Adicionar event listener para teclas Enter no login
-    const usuarioInput = document.getElementById("usuario");
-    const senhaInput = document.getElementById("senha");
-    
-    function handleEnterKey(event) {
-      if (event.key === "Enter") {  // Use event.key em vez de keyCode (depreciado)
-        event.preventDefault();
-        verificaLogin();
-      }
-    }
-    
-    if (usuarioInput) usuarioInput.addEventListener("keydown", handleEnterKey);
-    if (senhaInput) usuarioInput.addEventListener("keydown", handleEnterKey);
-    
-    const tempoInput = document.getElementById("tempo-input");
-    if (tempoInput) {
-      tempoInput.addEventListener("blur", function() {
-        let value = parseFloat(this.value);
-        if (!isNaN(value)) {
-          // Arredondar para uma casa decimal
-          value = Math.round(value * 10) / 10;
-          this.value = value.toFixed(1);
-        }
-      });
-    }
-
-    // Melhorar comportamento do campo de temperatura ao clicar nele
-    const tempInput = document.getElementById("temp-input");
-    if (tempInput) {
-      tempInput.addEventListener("focus", function() {
-        // Esta linha permite selecionar todo o conteúdo ao clicar no campo
-        this.select();
-      });
-      
-      // Evitar sincronização enquanto o usuário está digitando
-      tempInput.addEventListener("input", function(e) {
-        // Não sincronizar com o slider durante a digitação
-        e.stopPropagation();
-      });
-      
-      // Sincronizar só quando o usuário terminar de editar
-      tempInput.addEventListener("change", function() {
-        sincronizarSliderComInput();
-      });
-    }
-  });
-
-  function abrirPopupTemperatura() {
-    document.getElementById("popup-temperatura").style.display = "flex";
-    document.getElementById("temperatura-display-card").classList.add("active");
-    
-    // Inicializar o gráfico se ainda não foi criado
-    if (!grafico) {
-      inicializarGrafico();
-    } else {
-      // Atualizar o gráfico com os dados mais recentes
-      grafico.data.labels = historicoDados.map(item => item.timestamp);
-      grafico.data.datasets[0].data = historicoDados.map(item => item.temp);
-      grafico.update();
-    }
-  }
-
-  function fecharPopupTemperatura() {
-    document.getElementById("popup-temperatura").style.display = "none";
-    document.getElementById("temperatura-display-card").classList.remove("active");
-  }
-
-  // 2. Correção: remover a função duplicada e consolidar em apenas uma implementação
-  function inicializarGrafico() {
-    // Verificar se o elemento do gráfico existe
-    const canvas = document.getElementById('grafico-temperatura');
-    if (!canvas) {
-      console.error("Elemento do gráfico não encontrado");
-      return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    
-    // Criar gradiente
-    const gradientFill = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientFill.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
-    gradientFill.addColorStop(0.9, 'rgba(255, 99, 132, 0.0)');
-    
-    // Usar dados do histórico
-    dados = {
-      labels: historicoDados.map(item => item.timestamp),
-      datasets: [{
-        label: 'Temperatura (°C)',
-        data: historicoDados.map(item => item.temp),
-        borderColor: '#ff6384',
-        backgroundColor: gradientFill,
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        pointBackgroundColor: '#ff6384',
-        pointHoverBackgroundColor: '#ffffff',
-        pointHoverBorderColor: '#ff6384',
-        pointHoverBorderWidth: 2
-      }]
-    };
-
-    // Configuração do gráfico
-    const config = {
-      type: 'line',
-      data: dados,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-          duration: 800,
-          easing: 'easeOutCubic'
-        },
-        elements: {
-          line: {
-            tension: 0.4
-          }
-        },
-        scales: {
-          x: { 
-            type: 'time', 
-            time: { 
-              tooltipFormat: 'HH:mm:ss',
-              displayFormats: {
-                minute: 'HH:mm',
-                second: 'HH:mm:ss'
-              },
-              unit: 'second',
-              stepSize: 10
-            },
-            grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
-            },
-            ticks: {
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 6
-            }
-          },
-          y: { 
-            beginAtZero: false,
-            grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
-            },
-            ticks: {
-              padding: 10
-            }
-          }
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top',
-            labels: {
-              boxWidth: 12,
-              usePointStyle: true,
-              pointStyle: 'circle'
-            }
-          },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            titleColor: '#263238',
-            bodyColor: '#263238',
-            borderColor: '#ddd',
-            borderWidth: 1,
-            titleFont: {
-              weight: 'bold',
-              family: "'Poppins', sans-serif"
-            },
-            bodyFont: {
-              family: "'Poppins', sans-serif"
-            },
-            padding: 10,
-            cornerRadius: 8
-          }
-        },
-        interaction: {
-          mode: 'nearest',
-          axis: 'x',
-          intersect: false
-        }
-      }
-    };
-
-    // Destruir gráfico existente se houver
-    if (grafico) {
-      grafico.destroy();
-    }
-    
-    // Criar novo gráfico
-    grafico = new Chart(ctx, config);
-  }
-
-  // Função para abrir popup WiFi ao clicar no cartão WiFi
-  function abrirPopupWifi() {
-    document.getElementById("popup-wifi").style.display = "flex";
-    document.getElementById("wifi-card").classList.add("active");
-  }
-
-  function fecharPopupWifi() {
-    document.getElementById("popup-wifi").style.display = "none";
-    document.getElementById("wifi-card").classList.remove("active");
-  }
-
-  // Função para abrir popup MQTT ao clicar no cartão MQTT
-  function abrirPopupMQTT() {
-    document.getElementById("popup-mqtt").style.display = "flex";
-    document.getElementById("mqtt-card").classList.add("active");
-    atualizarDetalhesMQTT();
-  }
-
-  function fecharPopupMQTT() {
-    document.getElementById("popup-mqtt").style.display = "none";
-    document.getElementById("mqtt-card").classList.remove("active");
-  }
-  
-  function reconnectMQTT() {
-    if (client) {
-      client.end();
-      setTimeout(() => {
-        iniciarDashboard();
-        mostrarNotificacao("Reconectando ao broker MQTT...", "info-notification", "mqtt-notification");
-      }, 1000);
-    } else {
-      iniciarDashboard();
-      mostrarNotificacao("Iniciando conexão com broker MQTT...", "info-notification", "mqtt-notification");
-    }
-  }
-  
-  function verificaLogin() {
-    const usuario = document.getElementById("usuario").value;
-    const senha = document.getElementById("senha").value;
-
-    if (usuario === "teste" && senha === "teste") {
-      // Salvar estado de login no localStorage
-      localStorage.setItem("mqttDashboardLoggedIn", "true");
-      
-      document.getElementById("login-container").style.display = "none";
-      document.getElementById("dashboard").style.display = "block";
-      iniciarDashboard();
-    } else {
-      mostrarNotificacao("Usuário ou senha incorretos.", "error");
-    }
-  }
-
-  function logout() {
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
-    
-    localStorage.removeItem("mqttDashboardLoggedIn");
-
-    if (client) {
-      client.end();
-      client = null;
-    }
-
-    if (grafico) {
-      grafico.destroy();
-      grafico = null;
-    }
-    
-    historicoDados = [];
-    
-    document.getElementById("temperatura").textContent = "--";
-    document.getElementById("ssid").textContent = "--";
-    document.getElementById("mqtt-status").textContent = "Desconectado";
-    document.getElementById("dashboard").style.display = "none";
-    document.getElementById("login-container").style.display = "block";
-    document.getElementById("usuario").value = "";
-    document.getElementById("senha").value = "";
-  }
-
-  // Adicione esta função ao seu JavaScript para mudar as cores baseadas na temperatura
-  function atualizarCorTemperatura(elementId, temperatura) {
-    const card = document.getElementById(elementId);
-    if (!card) return;
-
-    // Definir cores para diferentes faixas de temperatura
-    let corInicio, corFim;
-    
-    if (temperatura < 20) {
-      // Azul - Frio
-      corInicio = '#4facfe';
-      corFim = '#00f2fe';
-    } else if (temperatura < 30) {
-      // Verde - Normal
-      corInicio = '#43e97b';
-      corFim = '#38f9d7';
-    } else if (temperatura < 40) {
-      // Laranja - Quente
-      corInicio = '#fa709a';
-      corFim = '#fee140';
-    } else {
-      // Vermelho - Muito quente
-      corInicio = '#f83600';
-      corFim = '#f9d423';
-    }
-    
-    // Aplicar o gradiente com transição suave
-    card.style.background = `linear-gradient(135deg, ${corInicio}, ${corFim})`;
-    card.style.transition = "background 1s ease";
-  }
-
-  function iniciarDashboard() {
-    const temperaturaSpan = document.getElementById("temperatura");
-    const ssidSpan = document.getElementById("ssid");
-
-    client = mqtt.connect('wss://test.mosquitto.org:8081', {
-      clientId: clientId
-    });
-    
-    const mqttStatus = document.getElementById("mqtt-status");
-    mqttStatus.style.color = "#ffcdd2";
-
-    client.on('connect', () => {
-      console.log("Conectado ao broker MQTT!");
-      mqttStatus.textContent = "Conectado";
-      mqttStatus.style.color = "white";
-      mqttStatus.classList.add("connected"); // Adicionar esta linha
-      
-      // Registrar o tempo de conexão
-      connectionStartTime = new Date();
-      
-      client.subscribe("grcomponentes/sensortemperatura");
-      client.subscribe("esp32/wifi/lista");
-      client.subscribe("esp32/wifi/status");
-      client.subscribe("grcomponentes/prensa/status");
-      client.subscribe("esp32/bluetooth/state");
-
-      // Publicar mensagem para testar conexão
-      client.publish("esp32/test", "Dashboard conectada e pronta");
-      console.log("Inscrições realizadas nos tópicos");
-      
-      // Atualizar os detalhes MQTT se o popup estiver aberto
-      if (document.getElementById("popup-mqtt").style.display === "flex") {
-        atualizarDetalhesMQTT();
-      }
-
-      // Solicitar estado atual do Bluetooth
-      setTimeout(() => {
-        client.publish("esp32/bluetooth/control", "STATUS");
-      }, 1000);
-    });
-    
-    client.on('disconnect', () => {
-      mqttStatus.textContent = "Desconectado";
-      mqttStatus.style.color = "#ffcdd2";
-      mqttStatus.classList.remove("connected"); // Adicionar esta linha
-      console.log("Desconectado do broker MQTT");
-    });
-    
-    client.on('reconnect', () => {
-      mqttStatus.textContent = "Reconectando...";
-      mqttStatus.style.color = "#ffe0b2";
-      console.log("Tentando reconectar ao broker MQTT");
-    });
-
-    // Adicionar eventos para detectar perda de conexão
-    client.on('offline', () => {
-      console.log("Conexão MQTT perdida!");
-      mqttStatus.textContent = "Desconectado";
-      mqttStatus.style.color = "#ffcdd2";
-      mqttStatus.classList.remove("connected");
-      
-      // Também mostrar notificação se o popup estiver aberto
-      if (document.getElementById("popup-mqtt").style.display === "flex") {
-        mostrarNotificacao("Conexão com o broker MQTT perdida", "error", "mqtt-notification");
-        atualizarDetalhesMQTT();
-      }
-    });
-
-    // Modifique esta parte para atribuir à variável global
-    let lastMessageReceived = Date.now();
-    heartbeatInterval = setInterval(() => {
-      // Se não recebemos uma mensagem nos últimos 5 segundos, considerar conexão perdida
-      if (Date.now() - lastMessageReceived > 5000) {
-        if (client && client.connected) {
-          // Tentar publicar uma mensagem de ping para verificar a conexão
-          try {
-            client.publish('dashboard/heartbeat', 'ping', { qos: 0 }, (err) => {
-              if (err) {
-                console.log("Falha ao enviar heartbeat, conexão provavelmente perdida");
-                mqttStatus.textContent = "Desconectado";
-                mqttStatus.style.color = "#ffcdd2";
-                mqttStatus.classList.remove("connected");
-                
-                if (document.getElementById("popup-mqtt").style.display === "flex") {
-                  mostrarNotificacao("Conexão com o broker MQTT perdida", "error", "mqtt-notification");
-                  atualizarDetalhesMQTT();
-                }
-              }
-            });
-          } catch (e) {
-            console.error("Erro ao tentar enviar heartbeat:", e);
-            mqttStatus.textContent = "Desconectado";
-            mqttStatus.style.color = "#ffcdd2";
-            mqttStatus.classList.remove("connected");
-          }
-        }
-      }
-    }, 5000);
-    
-    // Atualizar timestamp quando qualquer mensagem for recebida
-    client.on('message', (topico, mensagem) => {
-      // Atualizar as variáveis de última mensagem e timestamp
-      lastMessageReceived = Date.now();
-      lastMessageTime = new Date();
-      lastMessageContent = mensagem.toString();
-      
-      // Atualizar o detalhe no popup se estiver visível
-      if (document.getElementById("popup-mqtt").style.display === "flex") {
-        document.getElementById("mqtt-last-message").textContent = 
-          `${lastMessageTime.toLocaleTimeString()}: ${lastMessageContent.substring(0, 30)}${lastMessageContent.length > 30 ? '...' : ''}`;
-      }
-      
-      // para processar mensagens do tópico da prensa:
-      else if (topico === "grcomponentes/prensa/status") {
-        try {
-          const dados = JSON.parse(mensagem.toString());
-          
-          // Atualizar temperatura atual
-          if (dados.temperatura_atual !== undefined) {
-            document.getElementById("prensa-temp-value").textContent = 
-              parseFloat(dados.temperatura_atual123).toFixed(1);
-          }
-          
-          // Atualizar temperatura desejada
-          if (dados.temperatura_desejada !== undefined) {
-            // Verificar se o elemento target-info existe
-            let targetInfo = document.getElementById("prensa-temp-card").querySelector(".target-info");
-            if (!targetInfo) {
-              // Criar se não existir
-              targetInfo = document.createElement("div");
-              targetInfo.className = "target-info";
-              targetInfo.innerHTML = `
-
-                <span class="target-label">Alvo:</span>
-                <span class="target-value" id="prensa-temp-target-value">${parseFloat(dados.temperatura_desejada).toFixed(0)}</span>°C
-              `;
-              document.getElementById("prensa-temp-card").appendChild(targetInfo);
-            } else {
-              // Atualizar o valor existente
-              const targetValueElement = document.getElementById("prensa-temp-target-value");
-              if (targetValueElement) {
-                targetValueElement.textContent = parseFloat(dados.temperatura_desejada).toFixed(0);
-              }
-            }
-          }
-          
-          // Atualizar apenas o tempo configurado da prensa no card principal
-          if (dados.tempo_configurado !== undefined) {
-            // Garantir que o valor tenha apenas uma casa decimal
-            const tempo = Math.round(parseFloat(dados.tempo_configurado) * 10) / 10;
-            // Mostrar o tempo configurado como valor principal do card com 1 casa decimal
-            document.getElementById("prensa-tempo-atual").textContent = tempo.toFixed(1);
-          }
-          
-          // Adicionar indicação visual se a prensa estiver ligada
-          if (dados.prensa_ligada !== undefined) {
-            const prensaTempCard = document.getElementById("prensa-temp-card");
-            const prensaTempoCard = document.getElementById("prensa-tempo-card");
-            
-            if (dados.prensa_ligada === true) {
-              prensaTempCard.style.boxShadow = "0 0 15px rgba(255, 0, 0, 0.7)";
-              prensaTempoCard.style.boxShadow = "0 0 15px rgba(255, 0, 0, 0.7)";
-            } else {
-              prensaTempCard.style.boxShadow = "";
-              prensaTempoCard.style.boxShadow = "";
-            }
-          }
-        } catch (e) {
-          console.error("Erro ao processar mensagem de status da prensa:", e);
-        }
-      }
-      
-      // Atualizar temperatura LM35 (código existente)
-      if (topico === "grcomponentes/sensortemperatura") {
-        try {
-          const mensagemStr = mensagem.toString();
-          const dado = JSON.parse(mensagemStr);
-          
-          // Para temperatura LM35
-          if (dado.temp !== undefined) {
-            const temp = parseFloat(dado.temp);
-            document.getElementById("temperatura").textContent = temp.toFixed(1);
-            atualizarCorTemperatura("temperatura-display-card", temp);
-            
-            // Adicionar ao histórico para o gráfico
-            historicoDados.push({
-              temp: temp,
-              timestamp: new Date()
-            });
-            
-            // Limitar tamanho do histórico (manter últimos 50 pontos)
-            if (historicoDados.length > 50) {
-              historicoDados.shift();
-            }
-            
-            // Atualizar o gráfico se estiver visível
-            if (grafico && document.getElementById("popup-temperatura").style.display === "flex") {
-              grafico.data.labels = historicoDados.map(item => item.timestamp);
-              grafico.data.datasets[0].data = historicoDados.map(item => item.temp);
-              grafico.update();
-            }
-          }
-          
-          // Para temperatura NTC
-          if (dado.temp_ntc !== undefined) {
-            const ntcValue = parseFloat(dado.temp_ntc);
-            document.getElementById("ntc-value").textContent = ntcValue.toFixed(1);
-            atualizarCorTemperatura("ntc-card", ntcValue); // Atualizar cor do card NTC
-            
-            // Código existente para tendência...
-            if (ntcValue > lastTemperature) {
-              document.getElementById("ntc-trend").innerHTML = '<i class="fas fa-arrow-up" style="color: #ff7675;"></i>';
-            } else if (ntcValue < lastTemperature) {
-              document.getElementById("ntc-trend").innerHTML = '<i class="fas fa-arrow-down" style="color: #74b9ff;"></i>';
-            }
-            lastTemperature = ntcValue;
-          }
-          
-          // Para temperatura NTC2
-          if (dado.temp_ntc2 !== undefined) {
-            const ntc2Value = parseFloat(dado.temp_ntc2);
-            document.getElementById("ntc2-value").textContent = ntc2Value.toFixed(1);
-            atualizarCorTemperatura("ntc2-card", ntc2Value); // Atualizar cor do card NTC2
-            
-            // Código existente para tendência...
-            if (ntc2Value > lastTemperature) {
-              document.getElementById("ntc2-trend").innerHTML = '<i class="fas fa-arrow-up" style="color: #ffe066;"></i>';
-            } else if (ntc2Value < lastTemperature) {
-              document.getElementById("ntc2-trend").innerHTML = '<i class="fas fa-arrow-down" style="color: #a3f7bf;"></i>';
-            }
-            lastTemperature = ntc2Value;
-          }
-
-          // Atualizar o contador de segundos e o ssid
-          if (dado.segundos !== undefined) {
-            const segundosElement = document.getElementById("segundos-counter");
-            segundosElement.textContent = dado.segundos;
-            
-            // Atualizar o anel de progresso
-            const segundosRing = document.getElementById("segundos-ring");
-            if (segundosRing) {
-              const progress = (dado.segundos / 60) * 113; // 113 é o valor da circunferência do círculo
-              segundosRing.style.strokeDashoffset = 113 - progress;
-            }
-          }
-
-          // Atualizar o SSID
-          if (dado.ssid) {
-            document.getElementById("ssid").textContent = dado.ssid;
-          }
-
-          // Resto do código existente...
-          if (dado.tensao_rede !== undefined) {
-            const tensaoValue = parseFloat(dado.tensao_rede);
-            document.getElementById("tensao-value").textContent = tensaoValue.toFixed(0);
-            
-            // Atualizar a barra de progresso com base na tensão
-            const tensaoProgress = document.getElementById("tensao-progress");
-            const statusElement = document.getElementById("tensao-status");
-            
-            // Definir limites para 110V e 220V
-            let maxTensao = 250; // Valor máximo para a escala
-            let progressPercent = (tensaoValue / maxTensao) * 100;
-            tensaoProgress.style.width = Math.min(progressPercent, 100) + "%";
-            
-            // Remover classes anteriores
-            statusElement.classList.remove("normal", "baixa", "alta");
-            
-            // Verificar tipo de rede (110V ou 220V) e aplicar a classe adequada
-            if (tensaoValue < 90) {
-              // Tensão muito baixa, independente do tipo de rede
-              statusElement.classList.add("baixa");
-              atualizarCorCardTensao("baixa");
-            } else if (tensaoValue >= 90 && tensaoValue < 140) {
-              // Possivelmente rede 110V
-              if (tensaoValue >= 105 && tensaoValue <= 130) {
-                statusElement.classList.add("normal");
-                atualizarCorCardTensao("normal-110");
-              } else if (tensaoValue < 105) {
-                statusElement.classList.add("baixa");
-                atualizarCorCardTensao("baixa");
-              } else {
-                statusElement.classList.add("alta");
-                atualizarCorCardTensao("alta");
-              }
-              
-              // Adicionar indicador de tipo de rede
-              adicionarTipoRede("110V");
-            } else {
-              // Possivelmente rede 220V
-              if (tensaoValue >= 210 && tensaoValue <= 230) {
-                statusElement.classList.add("normal");
-                atualizarCorCardTensao("normal-220");
-              } else if (tensaoValue < 210) {
-                statusElement.classList.add("baixa");
-                atualizarCorCardTensao("baixa");
-              } else {
-                statusElement.classList.add("alta");
-                atualizarCorCardTensao("alta");
-              }
-              
-              // Adicionar indicador de tipo de rede
-              adicionarTipoRede("220V");
-            }
-          }
-          
-          // IMPORTANTE: Processar valores de tensão mínima e máxima
-          console.log("Valores de tensão recebidos:", {
-            atual: dado.tensao_rede,
-            min: dado.tensao_min,
-            max: dado.tensao_max
-          });
-          
-          // Atualizar valores de tensão mínima e máxima
-          if (dado.tensao_min !== undefined) {
-            const minValue = parseFloat(dado.tensao_min);
-            // Verificar se o valor é válido e menor que o valor atual
-            if (!isNaN(minValue) && minValue > 10.0 && minValue < 300.0) {
-              tensaoMinima = Math.min(tensaoMinima, minValue);
-            }
-          }
-          
-          if (dado.tensao_max !== undefined) {
-            const maxValue = parseFloat(dado.tensao_max);
-            // Verificar se o valor é válido e maior que o valor atual
-            if (!isNaN(maxValue) && maxValue > 10.0 && maxValue < 300.0) {
-              tensaoMaxima = Math.max(tensaoMaxima, maxValue);
-            }
-          }
-          
-        } catch (e) {
-          console.error("Erro ao processar mensagem:", e);
-        }
-      }
-      else if (topico === "esp32/wifi/lista") {
-        try {
-          const lista = JSON.parse(mensagem.toString());
-          const select = document.getElementById("lista-wifi");
-          select.innerHTML = "";
-          
-          if (Array.isArray(lista)) {
-            lista.forEach((ssid) => {
-              const option = document.createElement("option");
-              option.value = ssid;
-              option.textContent = ssid;
-              select.appendChild(option);
-            });
-            mostrarNotificacao("Redes WiFi encontradas", "success");
-          } else {
-            console.error("Lista de WiFi recebida não é um array:", lista);
-          }
-        } catch (e) {
-          console.error("Erro ao processar lista de WiFi:", e);
-        }
-      }
-      else if (topico === "esp32/wifi/status") {
-        const status = mensagem.toString();
-        mostrarNotificacao(status, status.includes("sucesso") ? "success" : 
-                               status.includes("erro") ? "error" : "info");
-      }
-      // Tratar mensagens do Bluetooth
-      if (topico === "esp32/bluetooth/state") {
-        const estado = mensagem.toString();
-        const statusElement = document.getElementById("bluetooth-status");
-        const switchElement = document.getElementById("bluetooth-switch");
+    <script>        // Configurações do MQTT
+        const MQTT_HOST = "34.39.131.150";
+        const MQTT_PORT = 9001;
+        const MQTT_CLIENT_ID = "webClient_" + Math.random().toString(16).substr(2, 8);
         
-        if (estado === "ON") {
-          statusElement.textContent = "Ativado";
-          statusElement.className = "stat-value on";
-          switchElement.classList.add("active");
-        } else {
-          statusElement.textContent = "Desativado";
-          statusElement.className = "stat-value off";
-          switchElement.classList.remove("active");
+        // Armazenamento de dados
+        let deviceData = {};
+        let client = null;
+        let isConnected = false;
+        
+        // Elementos da interface
+        const statusIndicator = document.getElementById('status-indicator');
+        const connectionText = document.getElementById('connection-text');        const dashboardGrid = document.getElementById('dashboard-grid');
+        const lastUpdateElem = document.getElementById('last-update');
+        const logContainer = document.getElementById('log-container');
+        const DEFAULT_TOPIC = "#"; // Assinar todos os tópicos
+          // Inicializar a conexão MQTT
+        function initMQTT() {
+            log("Conectando ao broker MQTT: " + MQTT_HOST + ":" + MQTT_PORT);
+            
+            client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, MQTT_CLIENT_ID);
+            
+            // Callbacks do cliente MQTT
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+            
+            // Conectar ao broker MQTT
+            client.connect({
+                onSuccess: onConnect,
+                onFailure: onFailure,
+                useSSL: false,
+                keepAliveInterval: 30
+            });
         }
-      }
-    });
-    
-    // Configurar um timer para atualizar o tempo de conexão
-    setInterval(() => {
-      if (connectionStartTime && document.getElementById("popup-mqtt").style.display === "flex") {
-        atualizarDetalhesMQTT();
-      }
-    }, 1000);
-  }
-
-  function mostrarNotificacao(mensagem, tipo, elementId = "wifi-notification") {
-    // Limpar timeout anterior se existir
-    if (notificationTimeout) {
-      clearTimeout(notificationTimeout);
-    }
-    
-    const notificacao = document.getElementById(elementId);
-    notificacao.textContent = mensagem;
-    notificacao.className = "notification " + tipo;
-    notificacao.style.display = "block";
-    
-    // Esconder a notificação após 10 segundos
-    notificationTimeout = setTimeout(() => {
-      notificacao.style.display = "none";
-    }, 10000);
-  }
-
-  function buscarRedes() {
-    if (client && client.connected) {
-      mostrarNotificacao("Buscando redes disponíveis...", "info-notification");
-      client.publish("esp32/wifi/scan", "buscar");
-    }
-  }
-
-  function enviarWifi() {
-    const ssid = document.getElementById("lista-wifi").value;
-    const senha = document.getElementById("nova-senha").value;
-
-    if (ssid && senha && ssid !== "-- redes disponíveis --") {
-      const payload = JSON.stringify({ ssid, senha });
-      client.publish("esp32/wifi/config", payload);
-      mostrarNotificacao("Tentando conectar à rede " + ssid + "...", "info-notification");
-    } else {
-      mostrarNotificacao("Selecione uma rede e insira a senha.", "error");
-    }
-  }
-
-  function simularMensagem() {
-    if (client && client.connected) {
-      const mensagemSimulada = {
-        temp: (25.5 + Math.random() * 10).toFixed(1),
-        ssid: "Rede_Simulada"
-      };
-      
-      console.log("Simulando mensagem:", mensagemSimulada);
-      
-      // Converter o objeto para string JSON antes de publicar
-      client.publish("grcomponentes/sensortemperatura", JSON.stringify(mensagemSimulada));
-      
-      // Também criar uma notificação
-      mostrarNotificacao("Mensagem simulada enviada!", "info-notification");
-    } else {
-      mostrarNotificacao("Cliente MQTT não conectado!", "error");
-    }
-  }
-
-  function atualizarDetalhesMQTT() {
-    // Atualizar status
-    const statusElement = document.getElementById("mqtt-status-detail");
-    statusElement.textContent = document.getElementById("mqtt-status").textContent;
-    statusElement.style.color = document.getElementById("mqtt-status").style.color;
-    
-    // Atualizar client ID
-    document.getElementById("mqtt-client-id").textContent = clientId;
-    
-    // Atualizar última mensagem
-    if (lastMessageTime && lastMessageContent) {
-      document.getElementById("mqtt-last-message").textContent = 
-        `${lastMessageTime.toLocaleTimeString()}: ${lastMessageContent.substring(0, 30)}${lastMessageContent.length > 30 ? '...' : ''}`;
-    }
-    
-    // Atualizar tempo online
-    if (connectionStartTime) {
-      const uptime = Math.floor((new Date() - connectionStartTime) / 1000);
-      const hours = Math.floor(uptime / 3600);
-      const minutes = Math.floor((uptime % 3600) / 60);
-      const seconds = uptime % 60;
-      document.getElementById("mqtt-uptime").textContent = 
-        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-  }
-
-  // Função para controlar Bluetooth
-  function toggleBluetooth() {
-    if (!client || !client.connected) {
-      mostrarNotificacao("MQTT não conectado", "error");
-      return;
-    }
-    
-    const bluetoothStatus = document.getElementById("bluetooth-status").textContent;
-    const newState = bluetoothStatus === "Ativado" ? "OFF" : "ON";
-    
-    // Mostrar estado temporário de "Alterando..."
-    document.getElementById("bluetooth-status").textContent = "Alterando...";
-    
-    // Enviar comando MQTT para alterar o estado do Bluetooth
-    client.publish("esp32/bluetooth/control", newState);
-    
-    // Solicitar status atual (redundância para garantir sincronização)
-    setTimeout(() => {
-      client.publish("esp32/bluetooth/control", "STATUS");
-    }, 1000);
-  }
-
-  // Função para atualizar a cor do card de tensão
-  function atualizarCorCardTensao(estado) {
-    const tensaoCard = document.getElementById("tensao-card");
-    
-    switch(estado) {
-      case "normal-110":
-        tensaoCard.style.background = "linear-gradient(135deg, #43e97b, #38f9d7)";
-        break;
-      case "normal-220":
-        tensaoCard.style.background = "linear-gradient(135deg, #3a7bd5, #3a6073)";
-        break;
-      case "baixa":
-        tensaoCard.style.background = "linear-gradient(135deg, #ff6b6b, #ff9966)";
-        break;
-      case "alta":
-        tensaoCard.style.background = "linear-gradient(135deg, #6a11cb, #2575fc)";
-        break;
-      default:
-        tensaoCard.style.background = "";
-    }
-  }
-
-  // Função para adicionar ou atualizar o indicador de tipo de rede
-  function adicionarTipoRede(tipo) {
-    const tensaoDisplay = document.querySelector(".tensao-display");
-    
-    // Remover indicador existente se houver
-    let tipoElement = tensaoDisplay.querySelector(".tensao-tipo");
-    if (!tipoElement) {
-      tipoElement = document.createElement("span");
-      tipoElement.className = "tensao-tipo";
-      tensaoDisplay.appendChild(tipoElement);
-    }
-    
-    tipoElement.textContent = tipo;
-  }
-</script>
-
-<!-- Popup para configuração da temperatura da prensa -->
-<div class="popup" id="popup-prensa-temp">
-  <div class="popup-content">
-    <div class="popup-header">
-      <h2><i class="fas fa-sliders-h"></i> Temperatura da Prensa</h2>
-      <button class="close-btn" onclick="fecharPopupPrensaTemp()">×</button>
-    </div>
-    
-    <div id="prensa-temp-notification" class="notification"></div>
-    
-    <div class="slider-container">
-      <label for="temp-slider" class="slider-label">Temperatura desejada (°C):</label>
-      <input type="range" id="temp-slider" min="20" max="200" step="1" value="120" 
-             oninput="atualizarTemperaturaPreview()">
-      <div class="slider-value">
-        <span id="temp-slider-value">120</span>°C
-      </div>
-      
-      <!-- Campo para digitar temperatura -->
-      <div class="manual-input-container">
-        <label for="temp-input">Ou digite a temperatura (20-200°C):</label>
-        <input type="number" id="temp-input" min="20" max="200" step="1" value="120" 
-               oninput="sincronizarSliderComInput()">
-      </div>
-    </div>
-    
-    <button class="btn btn-success" onclick="definirTemperaturaPrensagem()">
-      <i class="fas fa-save"></i> Definir temperatura
-    </button>
-  </div>
-</div>
-
-<!-- Popup para configuração do tempo da prensa - com título corrigido -->
-<div class="popup" id="popup-prensa-tempo">
-  <div class="popup-content">
-    <div class="popup-header">
-      <h2><i class="fas fa-clock"></i> Tempo</h2>
-      <button class="close-btn" onclick="fecharPopupPrensaTempo()">×</button>
-    </div>
-    
-    <div id="prensa-tempo-notification" class="notification"></div>
-    
-    <div class="time-config-container">
-      <label for="tempo-input" class="time-label">Tempo (segundos):</label>
-      <input type="number" id="tempo-input" min="0.1" max="300" step="0.1" value="3.0">
-      <small>Use valores com apenas uma casa decimal (1.0, 1.1, 1.2...)</small>
-    </div>
-    
-    <button class="btn btn-success" onclick="definirTempoPrensagem()">
-      <i class="fas fa-save"></i> Definir tempo
-    </button>
-  </div>
-</div>
-
-<!-- Estilos adicionais para os popups -->
-<style>
-  .slider-container, .time-config-container {
-    margin: 30px 0;
-  }
-  
-  .slider-label, .time-label {
-    display: block;
-    margin-bottom: 15px;
-    font-weight: 500;
-  }
-  
-  .slider-value {
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-top: 15px;
-    color: var(--primary-color);
-  }
-  
-  input[type="range"] {
-    width: 100%;
-    height: 10px;
-    -webkit-appearance: none;
-    background: linear-gradient(to right, #8e2de2, #4a00e0);
-    border-radius: 5px;
-    outline: none;
-  }
-  
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: white;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
-    cursor: pointer;
-  }
-  
-  input[type="number"] {
-    width: 100%;
-    padding: 12px;
-    font-size: 1.2rem;
-    text-align: center;
-    border: 1px solid #ddd;
-    border-radius: var(--radius);
-  }
-</style>
-
-<script>
-  // Funções para abrir/fechar popups da prensa
-  function abrirPopupPrensaTemp() {
-    document.getElementById("popup-prensa-temp").style.display = "flex";
-    document.getElementById("prensa-temp-card").classList.add("active");
-    
-    // Carregar valor atual no slider e input se disponível
-    const valorAtual = document.getElementById("prensa-temp-target-value");
-    if (valorAtual && valorAtual.textContent !== "--" && valorAtual.textContent !== "") {
-      const temperatura = parseFloat(valorAtual.textContent);
-      document.getElementById("temp-slider").value = temperatura;
-      document.getElementById("temp-slider-value").textContent = temperatura;
-      document.getElementById("temp-input").value = temperatura;
-    }
-  }
-
-  function fecharPopupPrensaTemp() {
-    document.getElementById("popup-prensa-temp").style.display = "none";
-    document.getElementById("prensa-temp-card").classList.remove("active");
-  }
-
-  function abrirPopupPrensaTempo() {
-    document.getElementById("popup-prensa-tempo").style.display = "flex";
-    document.getElementById("prensa-tempo-card").classList.add("active");
-    
-    // Carregar valor atual no input se disponível
-    const valorAtual = document.getElementById("prensa-tempo-atual");
-    if (valorAtual && valorAtual.textContent !== "--" && valorAtual.textContent !== "") {
-      document.getElementById("tempo-input").value = parseFloat(valorAtual.textContent);
-    }
-  }
-
-  function fecharPopupPrensaTempo() {
-    document.getElementById("popup-prensa-tempo").style.display = "none";
-    document.getElementById("prensa-tempo-card").classList.remove("active");
-  }
-
-  // Função para atualizar o preview da temperatura no slider
-  function atualizarTemperaturaPreview() {
-    const valor = document.getElementById("temp-slider").value;
-    document.getElementById("temp-slider-value").textContent = valor;
-    
-    // Também atualiza o campo de entrada manual
-    document.getElementById("temp-input").value = valor;
-  }
-
-  // Modifique a função sincronizarSliderComInput para permitir campos vazios e digitação livre
-  function sincronizarSliderComInput() {
-    const inputValue = document.getElementById("temp-input").value;
-    
-    // Verificar se o campo está vazio - não fazer nada neste caso
-    if (inputValue === "") {
-      return;
-    }
-    
-    // Verificar se o valor é um número
-    const valor = parseInt(inputValue);
-    
-    if (!isNaN(valor)) {
-      // Atualizar apenas o slider e o texto do preview
-      // mas NÃO forçar limites de valor durante a digitação
-      document.getElementById("temp-slider").value = valor;
-      document.getElementById("temp-slider-value").textContent = valor;
-      
-      // Não atualizar o campo de input durante a digitação
-      // para permitir que o usuário digite livremente
-    }
-  }
-
-  // Modificar a função para obter o valor de temperatura
-  function definirTemperaturaPrensagem() {
-    // Obter o valor digitado (prioridade) ou do slider
-    const inputValue = document.getElementById("temp-input").value;
-    
-    // Se o campo estiver vazio, mostrar erro
-    if (inputValue === "") {
-      mostrarNotificacao("Digite uma temperatura válida", "error", "prensa-temp-notification");
-      return;
-    }
-    
-    const temperatura = parseInt(inputValue) || parseInt(document.getElementById("temp-slider").value);
-    
-    if (isNaN(temperatura) || temperatura < 20 || temperatura > 200) {
-      mostrarNotificacao("Digite uma temperatura válida entre 20°C e 200°C", "error", "prensa-temp-notification");
-      return;
-    }
-    
-    if (client && client.connected) {
-      // Publicar no tópico que o ESP32 está inscrito
-      const payload = JSON.stringify({ temperatura_desejada: temperatura });
-      client.publish("grcomponentes/controle_prensa/temperatura", payload);
-      
-      // Atualizar o valor no card
-      const targetElement = document.getElementById("prensa-temp-card").querySelector(".target-info");
-      if (!targetElement) {
-        // Se não existir o elemento, vamos criá-lo
-        const div = document.createElement("div");
-        div.className = "target-info";
-        div.innerHTML = `
-          <span class="target-label">Alvo:</span>
-          <span class="target-value" id="prensa-temp-target-value">${temperatura}</span>°C
-        `;
-        document.getElementById("prensa-temp-card").appendChild(div);
-      } else {
-        // Se já existir, apenas atualizamos o valor
-        const targetValueElement = document.getElementById("prensa-temp-target-value");
-        if (targetValueElement) {
-          targetValueElement.textContent = temperatura;
+          // Callback de conexão bem-sucedida
+        function onConnect() {
+            isConnected = true;
+            statusIndicator.classList.add('connected');
+            connectionText.textContent = "Conectado";
+            log("✅ Conectado com sucesso ao broker MQTT");
+            
+            // Assinar todos os tópicos
+            subscribeToTopic(DEFAULT_TOPIC);
+            log("📌 Assinado automaticamente todos os tópicos (#)");
         }
-      }
-      
-      // Mostrar notificação
-      mostrarNotificacao(`Temperatura da prensa configurada para ${temperatura}°C`, 
-                        "success", "prensa-temp-notification");
-      
-      // Fechar popup após um breve intervalo
-      setTimeout(() => {
-        fecharPopupPrensaTemp();
-      }, 2000);
-    } else {
-      mostrarNotificacao("Cliente MQTT não conectado!", "error", "prensa-temp-notification");
-    }
-  }
-
-  // Função para definir tempo da prensa (envia para o ESP32)
-  function definirTempoPrensagem() {
-    // Obter o valor digitado
-    let tempo = parseFloat(document.getElementById("tempo-input").value);
-    
-    if (isNaN(tempo) || tempo < 0.1) {
-      mostrarNotificacao("Digite um valor válido maior que 0.1", "error", "prensa-tempo-notification");
-      return;
-    }
-    
-    // Formatação para ter apenas uma casa decimal
-    tempo = Math.round(tempo * 10) / 10;
-    
-    if (client && client.connected) {
-      // Publicar no tópico que o ESP32 está inscrito
-      const payload = JSON.stringify({ tempo_prensagem: tempo });
-      client.publish("grcomponentes/controle_prensa/tempo", payload);
-      
-      // Atualizar o valor no card principal diretamente - formatando com 1 casa decimal
-      document.getElementById("prensa-tempo-atual").textContent = tempo.toFixed(1);
-      
-      // Verificar se existe o elemento timer-config e atualizá-lo ou criá-lo
-      let timerConfigElement = document.getElementById("prensa-tempo-card").querySelector(".timer-config");
-      if (!timerConfigElement) {
-        // Se não existir o elemento, vamos criá-lo
-        const div = document.createElement("div");
-        div.className = "timer-config";
-        div.innerHTML = `
-          <span class="timer-config-label">Configurado:</span>
-          <span class="timer-config-value" id="prensa-tempo-config">${tempo.toFixed(1)}</span>s
-        `;
-        document.getElementById("prensa-tempo-card").appendChild(div);
-      } else {
-        // Se já existir, apenas atualizamos o valor
-        const configValueElement = document.getElementById("prensa-tempo-config");
-        if (configValueElement) {
-          configValueElement.textContent = tempo.toFixed(1);
+        
+        // Callback de falha na conexão
+        function onFailure(error) {
+            isConnected = false;
+            statusIndicator.classList.remove('connected');
+            connectionText.textContent = "Desconectado";
+            log("❌ Falha na conexão: " + error.errorMessage);
+            
+            // Tentar reconectar após 5 segundos
+            setTimeout(initMQTT, 5000);
         }
-      }
-      
-      // Mostrar notificação
-      mostrarNotificacao(`Tempo de prensagem configurado para ${tempo.toFixed(1)} segundos`, 
-                        "success", "prensa-tempo-notification");
-      
-      // Fechar popup após um breve intervalo
-      setTimeout(() => {
-        fecharPopupPrensaTempo();
-      }, 2000);
-    } else {
-      mostrarNotificacao("Cliente MQTT não conectado!", "error", "prensa-tempo-notification");
-    }
-  }
-
-  // Na parte onde você processa as mensagens do tópico da prensa:
-  // Dentro do if (topico === "grcomponentes/prensa/status") { ... }
-  // Atualizar apenas o tempo configurado da prensa no card principal
-  if (dados.tempo_configurado !== undefined) {
-    // Garantir que o valor tenha apenas uma casa decimal
-    const tempo = Math.round(parseFloat(dados.tempo_configurado) * 10) / 10;
-    // Mostrar o tempo configurado como valor principal do card com 1 casa decimal
-    document.getElementById("prensa-tempo-atual").textContent = tempo.toFixed(1);
-  }
-</script>
-
-<!-- Popup para o histórico de temperatura -->
-<div class="popup" id="popup-temperatura">
-  <div class="popup-content">
-    <div class="popup-header">
-      <h2><i class="fas fa-thermometer-half"></i> Histórico de Temperatura</h2>
-      <button class="close-btn" onclick="fecharPopupTemperatura()">×</button>
-    </div>
-    <div class="chart-container">
-      <canvas id="grafico-temperatura"></canvas>
-    </div>
-  </div>
-</div>
-
-<!-- Adicione este estilo junto aos outros estilos de card -->
-<style>
-  /* Estilo para o card do primeiro NTC */
-  .stat-card.ntc {
-    background: linear-gradient(135deg, #3a7bd5, #00d2fe);
-    color: white;
-  }
-  
-  .stat-card.ntc .stat-icon {
-    animation: pulseAnimation 2s ease-in-out infinite;
-  }
-  
-  /* Adicione o estilo do NTC2 aqui */
-  .stat-card.ntc2 {
-    background: linear-gradient(135deg, #ff9a44, #fc6076);
-    color: white;
-  }
-  
-  .stat-card.ntc2 .stat-icon {
-    animation: floatAnimation 3s ease-in-out infinite;
-  }
-  
-  @keyframes floatAnimation {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-  }
-</style>
-
-<script>
-  // No seu client.on('message', function(topic, message)...) 
-  // onde você já processa as mensagens do tópico "grcomponentes/sensortemperatura"
-  
-  // Adicionar após o processamento do primeiro NTC
-  if (dados.temp_ntc2 !== undefined) {
-    const ntc2Value = parseFloat(dados.temp_ntc2).toFixed(1);
-    const ntc2Element = document.getElementById("ntc2-value");
-    
-    // Verificar se o valor mudou desde a última leitura
-    if (ntc2Element.textContent !== "--") {
-      const oldValue = parseFloat(ntc2Element.textContent);
-      const trendElement = document.getElementById("ntc2-trend");
-      
-      // Adicionar indicador de tendência (subindo/descendo)
-      if (ntc2Value > oldValue) {
-        trendElement.innerHTML = '<i class="fas fa-arrow-up" style="color: #ffe066;"></i>';
-      } else if (ntc2Value < oldValue) {
-        trendElement.innerHTML = '<i class="fas fa-arrow-down" style="color: #a3f7bf;"></i>';
-      }
-    }
-    
-    ntc2Element.textContent = ntc2Value;
-  }
-</script>
-
-<!-- Adicione ao estilo -->
-<style>
-  /* Estilos para campo de entrada de temperatura manual */
-  .manual-input-container {
-    margin-top: 20px;
-    text-align: center;
-  }
-  
-  .manual-input-container label {
-    display: block;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
-    opacity: 0.8;
-  }
-  
-  .manual-input-container input[type="number"] {
-    width: 50%;
-    padding: 8px;
-    font-size: 1.1rem;
-    text-align: center;
-    border: 1px solid #ddd;
-    border-radius: var(--radius);
-    background-color: #f9f9f9;
-  }
-  
-  /* Melhorar aparência do campo de entrada ao receber foco */
-  .manual-input-container input[type="number"]:focus {
-    border-color: #8e2de2;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(142, 45, 226, 0.2);
-    background-color: white;
-  }
-  
-  /* Remover setas de incremento/decremento em navegadores */
-  .manual-input-container input[type="number"]::-webkit-inner-spin-button,
-  .manual-input-container input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  
-  /* Para Firefox */
-  .manual-input-container input[type="number"] {
-    -moz-appearance: textfield;
-  }
-</style>
-
-<!-- Adicione isso na seção de estilos -->
-
-<style>
-  /* Estilo para o card do Bluetooth */
-  .stat-card.bluetooth {
-    background: linear-gradient(135deg, #0082c8, #667db6, #0082c8, #0082c8);
-    background-size: 300% 300%;
-    color: white;
-    cursor: pointer;
-    animation: gradientAnimation 8s ease infinite;
-  }
-  
-  .stat-card.bluetooth .stat-icon {
-    animation: pulseAnimation 2s ease-in-out infinite;
-    font-size: 3rem;
-  }
-
-  /* Estilo para o switch toggle */
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 60px;
-    height: 30px;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 15px;
-    margin-top: 10px;
-    transition: all 0.3s ease;
-  }
-
-  .toggle-switch.active {
-    background-color: rgba(255, 255, 255, 0.6);
-  }
-
-  .toggle-slider {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: white;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    transition: all 0.3s ease;
-  }
-
-  .toggle-switch.active .toggle-slider {
-    transform: translateX(30px);
-  }
-
-  /* Status do Bluetooth */
-  .stat-card.bluetooth .stat-value.on {
-    color: #a3f7bf;
-  }
-
-  .stat-card.bluetooth .stat-value.off {
-    color: #ffcdd2;
-  }
-</style>
-
-<!-- Adicionar o popup para exibição dos detalhes da tensão AC -->
-<div class="popup" id="popup-tensao">
-  <div class="popup-content">
-    <div class="popup-header">
-      <h2><i class="fas fa-bolt"></i> Detalhes da Tensão</h2>
-      <button class="close-btn" onclick="fecharPopupTensao()">×</button>
-    </div>
-    
-    <div class="tensao-details">
-      <div class="detail-row">
-        <div class="detail-label">Tensão atual:</div>
-        <div class="detail-value" id="tensao-popup-atual">--</div>V
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Tensão mínima registrada:</div>
-        <div class="detail-value" id="tensao-popup-min">--</div>V
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Tensão máxima registrada:</div>
-        <div class="detail-value" id="tensao-popup-max">--</div>V
-      </div>
-      
-      <div class="detail-row">
-        <div class="detail-label">Tipo de rede:</div>
-        <div class="detail-value" id="tensao-popup-tipo">--</div>
-      </div>
-    </div>
-    
-    <button class="btn btn-danger" onclick="resetarValoresTensao()">
-      <i class="fas fa-redo-alt"></i> Resetar valores mín/máx
-    </button>
-  </div>
-</div>
-
-<!-- Adicionar as funções JavaScript para manipulação do popup -->
-<script>
-  let tensaoMinima = 999;
-  let tensaoMaxima = 0;
-  
-  function abrirPopupTensao() {
-    document.getElementById("popup-tensao").style.display = "flex";
-    document.getElementById("tensao-card").classList.add("active");
-    
-    // Atualizar os valores no popup
-    document.getElementById("tensao-popup-atual").textContent = document.getElementById("tensao-value").textContent;
-    
-    // Mostrar valores mínimos e máximos com verificação
-    if (tensaoMinima < 999 && tensaoMinima > 10) {
-      document.getElementById("tensao-popup-min").textContent = tensaoMinima.toFixed(0);
-    } else {
-      document.getElementById("tensao-popup-min").textContent = "--";
-    }
-    
-    if (tensaoMaxima > 0 && tensaoMaxima < 300) {
-      document.getElementById("tensao-popup-max").textContent = tensaoMaxima.toFixed(0);
-    } else {
-      document.getElementById("tensao-popup-max").textContent = "--";
-    }
-    
-    // Obter tipo de rede do elemento existente (se houver)
-    const tipoElement = document.querySelector(".tensao-tipo");
-    if (tipoElement) {
-      document.getElementById("tensao-popup-tipo").textContent = tipoElement.textContent;
-    }
-    
-    // Para debug: mostrar no console os valores atuais
-    console.log("Valores de tensão exibidos:", {
-      atual: document.getElementById("tensao-value").textContent,
-      min: tensaoMinima,
-      max: tensaoMaxima
-    });
-  }
-
-  function fecharPopupTensao() {
-    document.getElementById("popup-tensao").style.display = "none";
-    document.getElementById("tensao-card").classList.remove("active");
-  }
-
-  function resetarValoresTensao() {
-    if (client && client.connected) {
-      // Enviar comando para resetar valores mín/máx
-      client.publish("grcomponentes/controle_tensao/reset", "reset");
-      
-      // Resetar valores locais
-      tensaoMinima = 999;
-      tensaoMaxima = 0;
-      
-      // Atualizar a exibição
-      document.getElementById("tensao-popup-min").textContent = "--";
-      document.getElementById("tensao-popup-max").textContent = "--";
-      
-      // Mostrar notificação
-      mostrarNotificacao("Valores mínimo e máximo resetados", "success");
-    } else {
-      mostrarNotificacao("Cliente MQTT não conectado!", "error");
-    }
-  }
-</script>
-
-<!-- Adicionar estilos para o popup da tensão -->
-<style>
-  .tensao-details {
-    margin: 20px 0;
-  }
-  
-  .tensao-details .detail-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .tensao-details .detail-row:last-child {
-    border-bottom: none;
-  }
-  
-  .tensao-details .detail-label {
-    font-weight: 600;
-  }
-  
-  .tensao-details .detail-value {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--primary-color);
-  }
-</style>
-
+        
+        // Callback de perda de conexão
+        function onConnectionLost(responseObject) {
+            isConnected = false;
+            statusIndicator.classList.remove('connected');
+            connectionText.textContent = "Desconectado";
+            
+            if (responseObject.errorCode !== 0) {
+                log("❌ Conexão perdida: " + responseObject.errorMessage);
+            }
+            
+            // Tentar reconectar após 5 segundos
+            setTimeout(initMQTT, 5000);
+        }
+          // Callback de mensagem recebida
+        function onMessageArrived(message) {
+            const topic = message.destinationName;
+            const payload = message.payloadString;
+            
+            log(`📥 Mensagem recebida - Tópico: ${topic}, Payload: ${payload}`);
+            
+            // Extrair informações do tópico (gr/{endereço}/{tipo})
+            const topicParts = topic.split('/');
+            if (topicParts.length === 3 && topicParts[0] === 'gr') {
+                const deviceId = topicParts[1];
+                const dataType = topicParts[2];
+                
+                log(`🔍 Processando dados para dispositivo: ${deviceId}, tipo: ${dataType}`);
+                
+                // Analisar a mensagem (formato: valores separados por espaço)
+                const values = payload.split(' ').map(val => parseInt(val));
+                
+                // Guardar dados
+                if (!deviceData[deviceId]) {
+                    deviceData[deviceId] = {};
+                    log(`📋 Criando novo registro para dispositivo: ${deviceId}`);
+                }
+                
+                deviceData[deviceId][dataType] = {
+                    values: values,
+                    timestamp: new Date(),
+                    raw: payload
+                };
+                
+                log(`✅ Dados salvos para ${dataType}, atualizando dashboard...`);
+                
+                // Atualizar a interface
+                updateDashboard();
+            }
+        }
+        
+        // Função para assinar um tópico
+        function subscribeToTopic(topic) {
+            if (!isConnected || !topic) return;
+            
+            try {
+                client.subscribe(topic);
+                log(`📌 Assinado tópico: ${topic}`);
+            } catch (error) {
+                log(`❌ Erro ao assinar tópico: ${error}`);
+            }
+        }        // Função para obter a cor da temperatura com base no valor
+        function getTempColorClass(tempValue) {
+            if (tempValue < 20) return 'cold';
+            if (tempValue < 25) return 'normal';
+            if (tempValue < 30) return 'warm';
+            return 'hot';
+        }
+        
+        // Função para mostrar estado atual dos dados
+        function logCurrentState() {
+            log("📊 Estado atual dos dados:");
+            for (const deviceId in deviceData) {
+                log(`  Dispositivo ${deviceId}:`);
+                for (const dataType in deviceData[deviceId]) {
+                    const pacote = decodePacote(deviceData[deviceId][dataType].values);
+                    if (pacote) {
+                        if (dataType === 'temperaturalm35' || dataType === 'temperaturantc') {
+                            log(`    ${dataType}: parâmetro=${pacote.parametro}, valor=${(pacote.valor/100)}°C`);
+                        } else if (dataType === 'voltagem') {
+                            log(`    ${dataType}: parâmetro=${pacote.parametro}, valor=${(pacote.valor/100)} V`);
+                        } else {
+                            log(`    ${dataType}: parâmetro=${pacote.parametro}, valor=${pacote.valor}`);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Função para decodificar o pacote de acordo com o protocolo Comunicacao12B
+        function decodePacote(values) {
+            if (!values || values.length < 12) return null;
+            
+            return {
+                byteInicio: values[0],
+                endereco: (values[1] << 16) | (values[2] << 8) | values[3],
+                enderecoStr: `0x${values[1].toString(16).padStart(2, '0')}${values[2].toString(16).padStart(2, '0')}${values[3].toString(16).padStart(2, '0')}`,
+                operacao: values[4],
+                parametro: values[5],
+                valor: (values[6] << 24) | (values[7] << 16) | (values[8] << 8) | values[9],
+                crc: values[10],
+                byteFim: values[11]
+            };
+        }
+          // Atualizar a dashboard com os dados disponíveis
+        function updateDashboard() {
+            // Salvar posição de rolagem antes de atualizar
+            const scrollY = window.scrollY;
+            // Limpar a dashboard
+            dashboardGrid.innerHTML = '';
+            
+            // Se não houver dados, mostrar mensagem
+            if (Object.keys(deviceData).length === 0) {
+                dashboardGrid.innerHTML = `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Aguardando dados...</span>
+                            <span class="card-icon"><i class="fas fa-spinner fa-spin"></i></span>
+                        </div>
+                        <div class="card-content">
+                            <span class="no-data">Aguardando recebimento de dados MQTT</span>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Registrar status dos dados no console
+            logCurrentState();
+            
+            // Gerar cards para cada dispositivo/sensor
+            for (const deviceId in deviceData) {
+                for (const dataType in deviceData[deviceId]) {
+                    const data = deviceData[deviceId][dataType];
+                    const values = data.values;
+                    const timestamp = data.timestamp;
+                    
+                    // Decodificar pacote para exibir informações detalhadas
+                    const pacote = decodePacote(values);
+                    
+                    let title = `Dispositivo ${deviceId}`;
+                    let icon = 'fa-microchip';
+                    let value = '—';
+                    let unit = '';
+                    let tempValue = 0;
+                    let isTemperature = false;
+                    
+                    // Determinar visualização com base no tipo de dados
+                    if (dataType === 'temperaturalm35' || dataType === 'temperaturantc') {
+                        isTemperature = true;
+                        title = dataType === 'temperaturalm35' ? 
+                            `Temperatura LM35 - ID ${deviceId}` : 
+                            `Temperatura NTC - ID ${deviceId}`;
+                        icon = 'fa-temperature-half';
+                        if (pacote) {
+                            tempValue = pacote.valor / 100;
+                            value = isNaN(tempValue) ? '—' : tempValue.toFixed(1);
+                            unit = '°C';
+                        } else {
+                            tempValue = values[6] / 10;
+                            value = isNaN(tempValue) ? '—' : tempValue.toFixed(1);
+                            unit = '°C';
+                        }
+                    } else if (dataType === 'voltagem') {
+                        title = `Voltagem AC - ID ${deviceId}`;
+                        icon = 'fa-bolt';
+                        let voltagem = pacote ? pacote.valor / 100 : values[6] / 100;
+                        value = isNaN(voltagem) ? '—' : Math.round(voltagem); // Exibe apenas o valor inteiro
+                        unit = ' V';
+                        isTemperature = false;
+                    } else {
+                        title = `${dataType.charAt(0).toUpperCase() + dataType.slice(1)} - ID ${deviceId}`;
+                        if (pacote) {
+                            value = isNaN(pacote.valor) ? '—' : pacote.valor;
+                        } else {
+                            value = isNaN(values[6]) ? '—' : values[6];
+                        }
+                    }
+                    
+                    // Determinar a escala de temperatura (0-100°C)
+                    const tempPercent = Math.min(Math.max((tempValue / 50) * 100, 0), 100);
+                    const tempClass = getTempColorClass(tempValue);
+                    
+                    // Criar cartão
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    
+                    // Se for voltagem, adicionar evento de clique para mostrar popup
+                    if (dataType === 'voltagem') {
+                        card.style.cursor = 'pointer';
+                        card.addEventListener('click', function() {
+                            // Buscar valores máximo e mínimo do pacote, se existirem
+                            let tensaoMax = null;
+                            let tensaoMin = null;
+                            // Tenta extrair do pacote, se vierem como parâmetros extras (exemplo: pacote.tensaoMax, pacote.tensaoMin)
+                            // Caso não existam, mostra mensagem padrão
+                            // Aqui, como não há esses campos no protocolo, pode-se buscar em deviceData[deviceId].voltagem, se armazenado
+                            // ou mostrar mensagem de não disponível
+                            // Para exemplo, vamos mostrar apenas mensagem genérica
+                            let msg = '';
+                            if (typeof pacote !== 'undefined' && pacote && typeof pacote.valor !== 'undefined') {
+                                // Tenta buscar valores extras se existirem
+                                // Se você tiver esses valores em outro local, adapte aqui
+                                tensaoMax = deviceData[deviceId].voltagem?.tensaoMax;
+                                tensaoMin = deviceData[deviceId].voltagem?.tensaoMin;
+                            }
+                            if (typeof tensaoMax === 'number' && typeof tensaoMin === 'number') {
+                                msg = `<b>Tensão Máxima:</b> ${tensaoMax} V<br><b>Tensão Mínima:</b> ${tensaoMin} V`;
+                            } else {
+                                msg = 'Tensão máxima e mínima não disponíveis neste pacote.';
+                            }
+                            // Cria popup
+                            const popup = document.createElement('div');
+                            popup.style.position = 'fixed';
+                            popup.style.left = '0';
+                            popup.style.top = '0';
+                            popup.style.width = '100vw';
+                            popup.style.height = '100vh';
+                            popup.style.background = 'rgba(0,0,0,0.4)';
+                            popup.style.display = 'flex';
+                            popup.style.alignItems = 'center';
+                            popup.style.justifyContent = 'center';
+                            popup.style.zIndex = '9999';
+                            popup.innerHTML = `
+                                <div style="background: white; padding: 32px 24px; border-radius: 10px; min-width: 260px; box-shadow: 0 4px 24px rgba(0,0,0,0.18); text-align: center; position: relative;">
+                                    <h2 style='margin-bottom: 18px; color: #2c3e50;'>Tensão AC Registrada</h2>
+                                    <div style='font-size: 1.2rem; margin-bottom: 18px;'>${msg}</div>
+                                    <button id="close-popup" style="background: #3498db; color: white; border: none; border-radius: 5px; padding: 8px 18px; font-size: 1rem; cursor: pointer;">Fechar</button>
+                                </div>
+                            `;
+                            document.body.appendChild(popup);
+                            document.getElementById('close-popup').onclick = function() {
+                                document.body.removeChild(popup);
+                            };
+                        });
+                    }
+                    
+                    // Construir HTML com base no tipo de dados
+                    let cardHTML = `
+                        <div class="card-header">
+                            <span class="card-title">${title}</span>
+                            <span class="card-icon"><i class="fas ${icon}"></i></span>
+                        </div>
+                        <div class="card-content">
+                            <span class="data-value">${value}<span class="data-unit">${unit}</span></span>
+                    `;
+                    
+                    // Adicionar barra de temperatura apenas para sensores de temperatura
+                    if (isTemperature) {
+                        cardHTML += `
+                            <div class="temp-bar">
+                                <div class="temp-indicator ${tempClass}" style="width: ${tempPercent}%"></div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Adicionar detalhes do pacote
+                    if (pacote) {
+                        cardHTML += `
+                            <div class="packet-details">
+                                <div><span class="detail-label">Endereço:</span> ${pacote.enderecoStr}</div>
+                                <div><span class="detail-label">Operação:</span> ${pacote.operacao} (${pacote.operacao === 0 ? 'Leitura' : 'Escrita'})</div>
+                                <div><span class="detail-label">Parâmetro:</span> ${pacote.parametro} (${pacote.parametro === 1 ? 'LM35' : pacote.parametro === 2 ? 'NTC' : pacote.parametro === 3 ? 'Voltagem' : 'Outro'})</div>
+                                <div><span class="detail-label">Valor bruto:</span> 0x${pacote.valor.toString(16)}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    cardHTML += `<span class="data-timestamp">Atualizado: ${timestamp.toLocaleTimeString()}</span>`;
+                    cardHTML += `</div>`;
+                    
+                    card.innerHTML = cardHTML;
+                    dashboardGrid.appendChild(card);
+                }
+            }
+            
+            // Atualizar timestamp da última atualização
+            lastUpdateElem.textContent = `Última atualização: ${new Date().toLocaleTimeString()}`;
+            // Restaurar posição de rolagem após atualizar
+            window.scrollTo({ top: scrollY, behavior: 'auto' });
+        }
+          // Função para adicionar entrada de log
+        function log(message) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+          // Função para reiniciar a conexão e limpar os dados
+        function resetAndReconnect() {
+            log("🔄 Reiniciando conexão MQTT e limpando dados...");
+            deviceData = {};
+            
+            if (client && isConnected) {
+                client.disconnect();
+            }
+            
+            setTimeout(initMQTT, 500);
+            updateDashboard();
+        }
+        
+        // Inicializar eventListeners
+        window.addEventListener('load', () => {
+            initMQTT();
+            
+            // Adicionar evento para o botão de atualização
+            document.getElementById('refresh-button').addEventListener('click', resetAndReconnect);
+        });
+    </script>
 </body>
 </html>
