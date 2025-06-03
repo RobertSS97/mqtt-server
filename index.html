@@ -271,7 +271,7 @@
     </div>
 
     <script>        // Configurações do MQTT
-        const MQTT_HOST = "34.39.153.248";
+        const MQTT_HOST = "34.95.137.13"; // Endereço do broker MQTT GR Componentes
         const MQTT_PORT = 9001;
         const MQTT_CLIENT_ID = "webClient_" + Math.random().toString(16).substr(2, 8);
         
@@ -291,7 +291,7 @@
             log("Conectando ao broker MQTT: " + MQTT_HOST + ":" + MQTT_PORT);
             
             // Criação do cliente MQTT usando URL completa para evitar o sufixo /mqtt
-            const wsUrl = `wss://${MQTT_HOST}:${MQTT_PORT}/`;
+            const wsUrl = `ws://${MQTT_HOST}:${MQTT_PORT}/`;
             client = new Paho.MQTT.Client(wsUrl, MQTT_CLIENT_ID);
             
             // Callbacks do cliente MQTT
@@ -302,7 +302,7 @@
             client.connect({
                 onSuccess: onConnect,
                 onFailure: onFailure,
-                useSSL: true, // Alterado para usar WSS (WebSocket seguro)
+                useSSL: false, // Usando WebSocket sem SSL
                 keepAliveInterval: 30
             });
         }
