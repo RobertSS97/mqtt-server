@@ -290,7 +290,9 @@
         function initMQTT() {
             log("Conectando ao broker MQTT: " + MQTT_HOST + ":" + MQTT_PORT);
             
-            client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, MQTT_CLIENT_ID);
+            // Criação do cliente MQTT usando URL completa para evitar o sufixo /mqtt
+            const wsUrl = `wss://${MQTT_HOST}:${MQTT_PORT}/`;
+            client = new Paho.MQTT.Client(wsUrl, MQTT_CLIENT_ID);
             
             // Callbacks do cliente MQTT
             client.onConnectionLost = onConnectionLost;
@@ -300,7 +302,7 @@
             client.connect({
                 onSuccess: onConnect,
                 onFailure: onFailure,
-                useSSL: false,
+                useSSL: true, // Alterado para usar WSS (WebSocket seguro)
                 keepAliveInterval: 30
             });
         }
