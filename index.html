@@ -279,6 +279,8 @@
         let deviceData = {};
         let client = null;
         let isConnected = false;
+        let lastResetRequest = {};
+        let resetAckTimeout = {};
         
         // Elementos da interface
         const statusIndicator = document.getElementById('status-indicator');
@@ -346,36 +348,66 @@
         function onMessageArrived(message) {
             const topic = message.destinationName;
             const payload = message.payloadString;
-            
             log(`📥 Mensagem recebida - Tópico: ${topic}, Payload: ${payload}`);
-            
+
+            // Verifica se é o tópico de máximos e mínimos de voltagem
+            const maxminRegex = /^gr\/(\w+)\/voltagem\/maxmin$/;
+            const match = topic.match(maxminRegex);
+            if (match) {
+                const deviceId = match[1];
+                const [max, min] = payload.split(' ').map(v => parseInt(v) / 100);
+                if (!deviceData[deviceId]) deviceData[deviceId] = {};
+                if (!deviceData[deviceId].voltagem) deviceData[deviceId].voltagem = {};
+                deviceData[deviceId].voltagem.tensaoMax = max;
+                deviceData[deviceId].voltagem.tensaoMin = min;
+                // Confirmação visual de reset
+                if (lastResetRequest[deviceId]) {
+                    if (typeof max === 'number' && typeof min === 'number' && max === 0 && min === 100) {
+                        showToast('Tensões máxima e mínima resetadas com sucesso!', 'success');
+                    } else {
+                        showToast('Tensões máxima e mínima atualizadas.', 'info');
+                    }
+                    lastResetRequest[deviceId] = false;
+                }
+                log(`🔔 Atualizado max/min de voltagem para dispositivo ${deviceId}: Max=${max}V, Min=${min}V`);
+                updateDashboard();
+                return;
+            }
+
             // Extrair informações do tópico (gr/{endereço}/{tipo})
             const topicParts = topic.split('/');
             if (topicParts.length === 3 && topicParts[0] === 'gr') {
                 const deviceId = topicParts[1];
                 const dataType = topicParts[2];
-                
                 log(`🔍 Processando dados para dispositivo: ${deviceId}, tipo: ${dataType}`);
-                
                 // Analisar a mensagem (formato: valores separados por espaço)
                 const values = payload.split(' ').map(val => parseInt(val));
-                
                 // Guardar dados
                 if (!deviceData[deviceId]) {
                     deviceData[deviceId] = {};
                     log(`📋 Criando novo registro para dispositivo: ${deviceId}`);
                 }
-                
                 deviceData[deviceId][dataType] = {
                     values: values,
                     timestamp: new Date(),
                     raw: payload
                 };
-                
                 log(`✅ Dados salvos para ${dataType}, atualizando dashboard...`);
-                
                 // Atualizar a interface
                 updateDashboard();
+            }
+            
+            // Verifica se é o tópico de ACK de reset de voltagem
+            const resetAckRegex = /^gr\/(\w+)\/voltagem\/reset_ack$/;
+            const resetAckMatch = topic.match(resetAckRegex);
+            if (resetAckMatch) {
+                const deviceId = resetAckMatch[1];
+                if (lastResetRequest[deviceId]) {
+                    showToast('Tensões máxima e mínima resetadas com sucesso! (ACK)', 'success');
+                    lastResetRequest[deviceId] = false;
+                    if (resetAckTimeout[deviceId]) clearTimeout(resetAckTimeout[deviceId]);
+                }
+                return;
             }
         }
         
@@ -492,10 +524,10 @@
                             unit = '°C';
                         }
                     } else if (dataType === 'voltagem') {
-                        title = `Voltagem AC - ID ${deviceId}`;
+                        title = `Tensão AC RMS Atual - ID ${deviceId}`;
                         icon = 'fa-bolt';
                         let voltagem = pacote ? pacote.valor / 100 : values[6] / 100;
-                        value = isNaN(voltagem) ? '—' : Math.round(voltagem); // Exibe apenas o valor inteiro
+                        value = isNaN(voltagem) ? '—' : voltagem.toFixed(1); // Exibe com 1 casa decimal
                         unit = ' V';
                         isTemperature = false;
                     } else {
@@ -522,20 +554,13 @@
                             // Buscar valores máximo e mínimo do pacote, se existirem
                             let tensaoMax = null;
                             let tensaoMin = null;
-                            // Tenta extrair do pacote, se vierem como parâmetros extras (exemplo: pacote.tensaoMax, pacote.tensaoMin)
-                            // Caso não existam, mostra mensagem padrão
-                            // Aqui, como não há esses campos no protocolo, pode-se buscar em deviceData[deviceId].voltagem, se armazenado
-                            // ou mostrar mensagem de não disponível
-                            // Para exemplo, vamos mostrar apenas mensagem genérica
-                            let msg = '';
-                            if (typeof pacote !== 'undefined' && pacote && typeof pacote.valor !== 'undefined') {
-                                // Tenta buscar valores extras se existirem
-                                // Se você tiver esses valores em outro local, adapte aqui
-                                tensaoMax = deviceData[deviceId].voltagem?.tensaoMax;
-                                tensaoMin = deviceData[deviceId].voltagem?.tensaoMin;
+                            if (deviceData[deviceId] && deviceData[deviceId].voltagem) {
+                                tensaoMax = deviceData[deviceId].voltagem.tensaoMax;
+                                tensaoMin = deviceData[deviceId].voltagem.tensaoMin;
                             }
+                            let msg = '';
                             if (typeof tensaoMax === 'number' && typeof tensaoMin === 'number') {
-                                msg = `<b>Tensão Máxima:</b> ${tensaoMax} V<br><b>Tensão Mínima:</b> ${tensaoMin} V`;
+                                msg = `<b>Tensão Máxima:</b> ${tensaoMax.toFixed(1)} V<br><b>Tensão Mínima:</b> ${tensaoMin.toFixed(1)} V`;
                             } else {
                                 msg = 'Tensão máxima e mínima não disponíveis neste pacote.';
                             }
@@ -553,14 +578,40 @@
                             popup.style.zIndex = '9999';
                             popup.innerHTML = `
                                 <div style="background: white; padding: 32px 24px; border-radius: 10px; min-width: 260px; box-shadow: 0 4px 24px rgba(0,0,0,0.18); text-align: center; position: relative;">
-                                    <h2 style='margin-bottom: 18px; color: #2c3e50;'>Tensão AC Registrada</h2>
-                                    <div style='font-size: 1.2rem; margin-bottom: 18px;'>${msg}</div>
+                                    <h2 style='margin-bottom: 18px; color: #2c3e50;'>Tensão AC RMS Registrada</h2>
+                                    <div style='font-size: 1.2rem; margin-bottom: 18px;' id="popup-maxmin-msg">${msg}</div>
+                                    <button id="reset-maxmin" style="background: #e67e22; color: white; border: none; border-radius: 5px; padding: 8px 18px; font-size: 1rem; cursor: pointer; margin-right: 10px;">Resetar Máx/Mín</button>
                                     <button id="close-popup" style="background: #3498db; color: white; border: none; border-radius: 5px; padding: 8px 18px; font-size: 1rem; cursor: pointer;">Fechar</button>
+                                    <div id="reset-feedback" style="margin-top: 12px; font-size: 0.95rem;"></div>
                                 </div>
                             `;
                             document.body.appendChild(popup);
                             document.getElementById('close-popup').onclick = function() {
                                 document.body.removeChild(popup);
+                            };
+                            document.getElementById('reset-maxmin').onclick = function() {
+                                // Publicar comando MQTT para resetar max/min
+                                if (!isConnected) {
+                                    document.getElementById('reset-feedback').textContent = 'Não conectado ao broker.';
+                                    return;
+                                }
+                                const cmdTopic = `gr/${deviceId}/cmd`;
+                                const resetMsg = 'RESET_TENSAO_MINMAX';
+                                try {
+                                    client.send(cmdTopic, resetMsg);
+                                    lastResetRequest[deviceId] = true;
+                                    document.getElementById('reset-feedback').textContent = 'Comando de reset enviado! Aguarde confirmação.';
+                                    // Timeout para caso não haja resposta
+                                    if (resetAckTimeout[deviceId]) clearTimeout(resetAckTimeout[deviceId]);
+                                    resetAckTimeout[deviceId] = setTimeout(() => {
+                                        if (lastResetRequest[deviceId]) {
+                                            showToast('Não houve confirmação do reset das tensões.', 'warn');
+                                            lastResetRequest[deviceId] = false;
+                                        }
+                                    }, 8000);
+                                } catch (e) {
+                                    document.getElementById('reset-feedback').textContent = 'Erro ao enviar comando.';
+                                }
                             };
                         });
                     }
@@ -637,6 +688,25 @@
             // Adicionar evento para o botão de atualização
             document.getElementById('refresh-button').addEventListener('click', resetAndReconnect);
         });
+        
+        // Adicionar função toast visual:
+        function showToast(msg, type) {
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            toast.style.position = 'fixed';
+            toast.style.bottom = '32px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.background = type === 'success' ? '#2ecc71' : (type === 'info' ? '#3498db' : '#e67e22');
+            toast.style.color = 'white';
+            toast.style.padding = '12px 28px';
+            toast.style.borderRadius = '6px';
+            toast.style.fontSize = '1.1rem';
+            toast.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
+            toast.style.zIndex = '10000';
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3500);
+        }
     </script>
 </body>
 </html>
