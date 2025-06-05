@@ -302,7 +302,7 @@
             client.connect({
                 onSuccess: onConnect,
                 onFailure: onFailure,
-                useSSL: false, // Usando WebSocket sem SSL
+                useSSL: true, // Usando WebSocket sem SSL
                 keepAliveInterval: 30
             });
         }
